@@ -1,0 +1,13 @@
+# Dependências instaladas no projeto
+node_modules/
+
+# Arquivo com credenciais locais do banco de dados
+.env
+
+# Logs gerados pelo Node / npm
+*.log
+npm-debug.log*
+
+# Configurações do editor e do sistema operacional
+.vscode/
+.DS_Store
