@@ -6,7 +6,7 @@ import { Insumo } from "../models/index.js";
 
 export const getAll = async (req, res) => {
     try {
-        const insumos = await Insumo.findAll();
+        const insumos = await Insumo.findAll({ order: [['id', 'ASC']] });
         return res.status(200).json(insumos);
     } catch (error) {
         return res.status(500).json({
@@ -42,29 +42,37 @@ export const create = async (req, res) => {
             nome,
             unidade_medida,
             unidadeMedida,
+            unidade,
             quantidade_atual,
             quantidadeAtual,
+            estoque,
             estoque_minimo,
-            estoqueMinimo
+            estoqueMinimo,
+            minimo,
+            custo,
+            fornecedor
         } = req.body;
 
-        const unidade = unidade_medida ?? unidadeMedida;
-        const qtdAtual = quantidade_atual ?? quantidadeAtual ?? 0;
-        const estMinimo = estoque_minimo ?? estoqueMinimo ?? 0;
+        const unidadeFinal = unidade_medida ?? unidadeMedida ?? unidade;
+        const qtdFinal = quantidade_atual ?? quantidadeAtual ?? estoque ?? 0;
+        const minimoFinal = estoque_minimo ?? estoqueMinimo ?? minimo ?? 0;
+        const custoFinal = custo !== undefined && custo !== null ? Number(custo) : 0;
 
         if (!nome || typeof nome !== "string" || !nome.trim()) {
             return res.status(400).json({ message: "O campo 'nome' é obrigatório." });
         }
 
-        if (!unidade || typeof unidade !== "string" || !unidade.trim()) {
+        if (!unidadeFinal || typeof unidadeFinal !== "string" || !unidadeFinal.trim()) {
             return res.status(400).json({ message: "O campo 'unidade_medida' é obrigatório." });
         }
 
         const novoInsumo = await Insumo.create({
             nome: nome.trim(),
-            unidade_medida: unidade.trim(),
-            quantidade_atual: qtdAtual,
-            estoque_minimo: estMinimo
+            unidade_medida: unidadeFinal.trim(),
+            quantidade_atual: Number(qtdFinal),
+            estoque_minimo: Number(minimoFinal),
+            custo: custoFinal,
+            fornecedor: fornecedor ? String(fornecedor).trim() : null
         });
 
         return res.status(201).json(novoInsumo);
@@ -96,29 +104,36 @@ export const update = async (req, res) => {
             nome,
             unidade_medida,
             unidadeMedida,
+            unidade,
             quantidade_atual,
             quantidadeAtual,
+            estoque,
             estoque_minimo,
-            estoqueMinimo
+            estoqueMinimo,
+            minimo,
+            custo,
+            fornecedor
         } = req.body;
 
-        const unidade = unidade_medida ?? unidadeMedida;
-        const qtdAtual = quantidade_atual ?? quantidadeAtual;
-        const estMinimo = estoque_minimo ?? estoqueMinimo;
+        const unidadeFinal = unidade_medida ?? unidadeMedida ?? unidade;
+        const qtdFinal = quantidade_atual ?? quantidadeAtual ?? estoque;
+        const minimoFinal = estoque_minimo ?? estoqueMinimo ?? minimo;
 
         if (nome !== undefined && (typeof nome !== "string" || !nome.trim())) {
             return res.status(400).json({ message: "O campo 'nome' não pode ser vazio." });
         }
 
-        if (unidade !== undefined && (typeof unidade !== "string" || !unidade.trim())) {
+        if (unidadeFinal !== undefined && (typeof unidadeFinal !== "string" || !unidadeFinal.trim())) {
             return res.status(400).json({ message: "O campo 'unidade_medida' não pode ser vazio." });
         }
 
         await insumo.update({
             ...(nome !== undefined && { nome: nome.trim() }),
-            ...(unidade !== undefined && { unidade_medida: unidade.trim() }),
-            ...(qtdAtual !== undefined && { quantidade_atual: qtdAtual }),
-            ...(estMinimo !== undefined && { estoque_minimo: estMinimo })
+            ...(unidadeFinal !== undefined && { unidade_medida: unidadeFinal.trim() }),
+            ...(qtdFinal !== undefined && { quantidade_atual: Number(qtdFinal) }),
+            ...(minimoFinal !== undefined && { estoque_minimo: Number(minimoFinal) }),
+            ...(custo !== undefined && { custo: Number(custo) }),
+            ...(fornecedor !== undefined && { fornecedor: fornecedor ? String(fornecedor).trim() : null })
         });
 
         return res.status(200).json(insumo);

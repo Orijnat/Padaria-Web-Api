@@ -3,8 +3,8 @@ import { DataTypes } from "sequelize";
 import Produto from "./ProdutoModel.js";
 import Insumo from "./InsumoModel.js";
 
-const ItemReceita = sequelize.define(
-    'itens_receita',
+const Receita = sequelize.define(
+    'receitas',
     {
         id: {
             type: DataTypes.INTEGER,
@@ -24,7 +24,7 @@ const ItemReceita = sequelize.define(
     }
 );
 
-ItemReceita.belongsTo(Produto, {
+Receita.belongsTo(Produto, {
     as: 'produto',
     onDelete: 'NO ACTION',
     onUpdate: 'NO ACTION',
@@ -35,7 +35,7 @@ ItemReceita.belongsTo(Produto, {
     }
 });
 
-ItemReceita.belongsTo(Insumo, {
+Receita.belongsTo(Insumo, {
     as: 'insumo',
     onDelete: 'NO ACTION',
     onUpdate: 'NO ACTION',
@@ -46,4 +46,4 @@ ItemReceita.belongsTo(Insumo, {
     }
 });
 
-export default ItemReceita;
+export default Receita;

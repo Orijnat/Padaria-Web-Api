@@ -6,7 +6,7 @@ import { Produto } from "../models/index.js";
 
 export const getAll = async (req, res) => {
     try {
-        const produtos = await Produto.findAll();
+        const produtos = await Produto.findAll({ order: [['id', 'ASC']] });
         return res.status(200).json(produtos);
     } catch (error) {
         return res.status(500).json({
@@ -38,7 +38,18 @@ export const getById = getId;
 
 export const create = async (req, res) => {
     try {
-        const { nome, preco, estoque } = req.body;
+        const {
+            nome,
+            preco,
+            estoque,
+            categoria_id,
+            categoriaId,
+            receita_id,
+            receitaId,
+            descricao,
+            emoji,
+            ativo
+        } = req.body;
 
         if (!nome || typeof nome !== "string" || !nome.trim()) {
             return res.status(400).json({ message: "O campo 'nome' é obrigatório." });
@@ -51,7 +62,12 @@ export const create = async (req, res) => {
         const novoProduto = await Produto.create({
             nome: nome.trim(),
             preco: Number(preco),
-            estoque: estoque !== undefined && estoque !== null ? Number(estoque) : 0
+            estoque: estoque !== undefined && estoque !== null ? Number(estoque) : 0,
+            categoria_id: categoria_id ?? categoriaId ?? null,
+            receita_id: receita_id ?? receitaId ?? null,
+            descricao: descricao ? String(descricao).trim() : null,
+            emoji: emoji ? String(emoji).trim() : '🥖',
+            ativo: ativo !== undefined ? Boolean(ativo) : true
         });
 
         return res.status(201).json(novoProduto);
@@ -79,24 +95,36 @@ export const update = async (req, res) => {
             return res.status(404).json({ message: "Produto não encontrado." });
         }
 
-        const { nome, preco, estoque } = req.body;
+        const {
+            nome,
+            preco,
+            estoque,
+            categoria_id,
+            categoriaId,
+            receita_id,
+            receitaId,
+            descricao,
+            emoji,
+            ativo
+        } = req.body;
 
         if (nome !== undefined && (typeof nome !== "string" || !nome.trim())) {
             return res.status(400).json({ message: "O campo 'nome' não pode ser vazio." });
         }
 
-        if (preco !== undefined && (preco === null || isNaN(Number(preco)))) {
+        if (preco !== undefined && isNaN(Number(preco))) {
             return res.status(400).json({ message: "O campo 'preco' deve ser numérico." });
-        }
-
-        if (estoque !== undefined && (estoque === null || isNaN(Number(estoque)))) {
-            return res.status(400).json({ message: "O campo 'estoque' deve ser numérico." });
         }
 
         await produto.update({
             ...(nome !== undefined && { nome: nome.trim() }),
             ...(preco !== undefined && { preco: Number(preco) }),
-            ...(estoque !== undefined && { estoque: Number(estoque) })
+            ...(estoque !== undefined && { estoque: Number(estoque) }),
+            ...(categoria_id !== undefined || categoriaId !== undefined ? { categoria_id: categoria_id ?? categoriaId } : {}),
+            ...(receita_id !== undefined || receitaId !== undefined ? { receita_id: receita_id ?? receitaId } : {}),
+            ...(descricao !== undefined && { descricao: descricao ? String(descricao).trim() : null }),
+            ...(emoji !== undefined && { emoji: emoji ? String(emoji).trim() : '🥖' }),
+            ...(ativo !== undefined && { ativo: Boolean(ativo) })
         });
 
         return res.status(200).json(produto);
