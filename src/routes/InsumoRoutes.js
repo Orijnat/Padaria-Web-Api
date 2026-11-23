@@ -6,9 +6,11 @@ import {
     update,
     destroy
 } from "../controller/InsumoController.js";
+import { autenticarToken, autorizarFuncionario } from "../middlewares/authMiddleware.js";
 
 const router = Router();
 
+router.use(autenticarToken, autorizarFuncionario);
 router.get("/", getAll);
 router.get("/:id", getById);
 router.post("/", create);

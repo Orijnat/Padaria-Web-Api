@@ -1,7 +1,5 @@
 import { sequelize } from "../config/index.js";
 import { DataTypes } from "sequelize";
-import Produto from "./ProdutoModel.js";
-import Insumo from "./InsumoModel.js";
 
 const Receita = sequelize.define(
     'receitas',
@@ -11,11 +9,40 @@ const Receita = sequelize.define(
             autoIncrement: true,
             primaryKey: true
         },
-        quantidade_necessaria: {
-            type: DataTypes.FLOAT,
+        nome: {
+            type: DataTypes.STRING(150),
             allowNull: false,
-            name: 'quantidadeNecessaria',
-            field: 'quantidade_necessaria'
+            validate: { notEmpty: true, len: [1, 150] }
+        },
+        categoriaId: {
+            type: DataTypes.INTEGER,
+            allowNull: true,
+            field: 'categoria_id'
+        },
+        rendimento: {
+            type: DataTypes.DOUBLE,
+            allowNull: false,
+            defaultValue: 1,
+            validate: { quantidadePositiva(value) {
+                if (!(Number(value) > 0)) throw new Error('O rendimento deve ser maior que zero.');
+            } }
+        },
+        unidadeRendimento: {
+            type: DataTypes.STRING(30),
+            allowNull: false,
+            defaultValue: 'unidades',
+            field: 'unidade_rendimento'
+        },
+        tempoPreparo: {
+            type: DataTypes.INTEGER,
+            allowNull: false,
+            defaultValue: 0,
+            field: 'tempo_preparo',
+            validate: { min: 0, isInt: true }
+        },
+        instrucoes: {
+            type: DataTypes.TEXT,
+            allowNull: true
         }
     },
     {
@@ -23,27 +50,5 @@ const Receita = sequelize.define(
         timestamps: false
     }
 );
-
-Receita.belongsTo(Produto, {
-    as: 'produto',
-    onDelete: 'NO ACTION',
-    onUpdate: 'NO ACTION',
-    foreignKey: {
-        name: 'idProduto',
-        allowNull: false,
-        field: 'produto_id'
-    }
-});
-
-Receita.belongsTo(Insumo, {
-    as: 'insumo',
-    onDelete: 'NO ACTION',
-    onUpdate: 'NO ACTION',
-    foreignKey: {
-        name: 'idInsumo',
-        allowNull: false,
-        field: 'insumo_id'
-    }
-});
 
 export default Receita;

@@ -11,32 +11,36 @@ const Insumo = sequelize.define(
         },
         nome: {
             type: DataTypes.STRING(150),
-            allowNull: false
+            allowNull: false,
+            unique: true,
+            validate: { notEmpty: true, len: [1, 150] }
         },
-        unidade_medida: {
+        unidadeMedida: {
             type: DataTypes.STRING(20),
             allowNull: false,
-            name: 'unidadeMedida',
-            field: 'unidade_medida'
+            field: 'unidade_medida',
+            validate: { notEmpty: true }
         },
-        quantidade_atual: {
-            type: DataTypes.FLOAT,
+        quantidadeAtual: {
+            type: DataTypes.DOUBLE,
             allowNull: false,
             defaultValue: 0,
-            name: 'quantidadeAtual',
-            field: 'quantidade_atual'
+            field: 'quantidade_atual',
+            validate: { min: 0 }
         },
-        estoque_minimo: {
-            type: DataTypes.FLOAT,
+        estoqueMinimo: {
+            type: DataTypes.DOUBLE,
             allowNull: false,
             defaultValue: 0,
-            name: 'estoqueMinimo',
-            field: 'estoque_minimo'
+            field: 'estoque_minimo',
+            validate: { min: 0 }
         },
         custo: {
             type: DataTypes.DECIMAL(10, 2),
             allowNull: false,
-            defaultValue: 0.00
+            defaultValue: 0.00,
+            validate: { min: 0 },
+            get() { const v = this.getDataValue('custo'); return v == null ? v : parseFloat(v); }
         },
         fornecedor: {
             type: DataTypes.STRING(150),

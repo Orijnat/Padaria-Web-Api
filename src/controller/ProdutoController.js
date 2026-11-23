@@ -1,36 +1,23 @@
 import { Produto } from "../models/index.js";
-
-/**
- * Controller para operações CRUD de Produto
- */
+import { sucesso, criado, erro, erroDeValidacao, erroDoSequelize } from "../utils/resposta.js";
+import { paraBooleano } from "../utils/validacao.js";
 
 export const getAll = async (req, res) => {
     try {
         const produtos = await Produto.findAll({ order: [['id', 'ASC']] });
-        return res.status(200).json(produtos);
+        return sucesso(res, produtos);
     } catch (error) {
-        return res.status(500).json({
-            message: "Erro ao buscar produtos.",
-            error: error.message
-        });
+        return erro(res, 500, "Erro ao buscar produtos.", error.message);
     }
 };
 
 export const getId = async (req, res) => {
     try {
-        const { id } = req.params;
-        const produto = await Produto.findByPk(id);
-
-        if (!produto) {
-            return res.status(404).json({ message: "Produto não encontrado." });
-        }
-
-        return res.status(200).json(produto);
+        const produto = await Produto.findByPk(req.params.id);
+        if (!produto) return erro(res, 404, "Produto não encontrado.");
+        return sucesso(res, produto);
     } catch (error) {
-        return res.status(500).json({
-            message: "Erro ao buscar produto por ID.",
-            error: error.message
-        });
+        return erro(res, 500, "Erro ao buscar produto.", error.message);
     }
 };
 
@@ -38,128 +25,71 @@ export const getById = getId;
 
 export const create = async (req, res) => {
     try {
-        const {
-            nome,
-            preco,
-            estoque,
-            categoria_id,
-            categoriaId,
-            receita_id,
-            receitaId,
-            descricao,
-            emoji,
-            ativo
-        } = req.body;
+        const { nome, preco, estoque, categoriaId, receitaId, descricao, emoji, ativo } = req.body;
 
         if (!nome || typeof nome !== "string" || !nome.trim()) {
-            return res.status(400).json({ message: "O campo 'nome' é obrigatório." });
+            return erroDeValidacao(res, { nome: "O campo 'nome' é obrigatório." });
         }
-
         if (preco === undefined || preco === null || isNaN(Number(preco))) {
-            return res.status(400).json({ message: "O campo 'preco' é obrigatório e deve ser numérico." });
+            return erroDeValidacao(res, { preco: "O campo 'preco' é obrigatório e deve ser numérico." });
         }
 
         const novoProduto = await Produto.create({
             nome: nome.trim(),
             preco: Number(preco),
             estoque: estoque !== undefined && estoque !== null ? Number(estoque) : 0,
-            categoria_id: categoria_id ?? categoriaId ?? null,
-            receita_id: receita_id ?? receitaId ?? null,
+            categoriaId: categoriaId !== undefined ? categoriaId : null,
+            receitaId: receitaId !== undefined ? receitaId : null,
             descricao: descricao ? String(descricao).trim() : null,
             emoji: emoji ? String(emoji).trim() : '🥖',
-            ativo: ativo !== undefined ? Boolean(ativo) : true
+            ativo: paraBooleano(ativo, true)
         });
 
-        return res.status(201).json(novoProduto);
+        return criado(res, novoProduto, "Produto criado com sucesso.");
     } catch (error) {
-        if (error.name === "SequelizeValidationError" || error.name === "SequelizeUniqueConstraintError") {
-            return res.status(400).json({
-                message: "Erro de validação ao criar produto.",
-                errors: error.errors?.map((err) => err.message) || error.message
-            });
-        }
-
-        return res.status(500).json({
-            message: "Erro ao criar produto.",
-            error: error.message
-        });
+        return erroDoSequelize(res, error, "Erro ao criar produto.");
     }
 };
 
 export const update = async (req, res) => {
     try {
-        const { id } = req.params;
-        const produto = await Produto.findByPk(id);
+        const produto = await Produto.findByPk(req.params.id);
+        if (!produto) return erro(res, 404, "Produto não encontrado.");
 
-        if (!produto) {
-            return res.status(404).json({ message: "Produto não encontrado." });
-        }
-
-        const {
-            nome,
-            preco,
-            estoque,
-            categoria_id,
-            categoriaId,
-            receita_id,
-            receitaId,
-            descricao,
-            emoji,
-            ativo
-        } = req.body;
+        const { nome, preco, estoque, categoriaId, receitaId, descricao, emoji, ativo } = req.body;
 
         if (nome !== undefined && (typeof nome !== "string" || !nome.trim())) {
-            return res.status(400).json({ message: "O campo 'nome' não pode ser vazio." });
+            return erroDeValidacao(res, { nome: "O campo 'nome' não pode ser vazio." });
         }
-
         if (preco !== undefined && isNaN(Number(preco))) {
-            return res.status(400).json({ message: "O campo 'preco' deve ser numérico." });
+            return erroDeValidacao(res, { preco: "O campo 'preco' deve ser numérico." });
         }
 
         await produto.update({
             ...(nome !== undefined && { nome: nome.trim() }),
             ...(preco !== undefined && { preco: Number(preco) }),
             ...(estoque !== undefined && { estoque: Number(estoque) }),
-            ...(categoria_id !== undefined || categoriaId !== undefined ? { categoria_id: categoria_id ?? categoriaId } : {}),
-            ...(receita_id !== undefined || receitaId !== undefined ? { receita_id: receita_id ?? receitaId } : {}),
+            ...(categoriaId !== undefined && { categoriaId }),
+            ...(receitaId !== undefined && { receitaId }),
             ...(descricao !== undefined && { descricao: descricao ? String(descricao).trim() : null }),
             ...(emoji !== undefined && { emoji: emoji ? String(emoji).trim() : '🥖' }),
-            ...(ativo !== undefined && { ativo: Boolean(ativo) })
+            ...(ativo !== undefined && { ativo: paraBooleano(ativo, true) })
         });
 
-        return res.status(200).json(produto);
+        return sucesso(res, produto, "Produto atualizado com sucesso.");
     } catch (error) {
-        if (error.name === "SequelizeValidationError" || error.name === "SequelizeUniqueConstraintError") {
-            return res.status(400).json({
-                message: "Erro de validação ao atualizar produto.",
-                errors: error.errors?.map((err) => err.message) || error.message
-            });
-        }
-
-        return res.status(500).json({
-            message: "Erro ao atualizar produto.",
-            error: error.message
-        });
+        return erroDoSequelize(res, error, "Erro ao atualizar produto.");
     }
 };
 
 export const destroy = async (req, res) => {
     try {
-        const { id } = req.params;
-        const produto = await Produto.findByPk(id);
-
-        if (!produto) {
-            return res.status(404).json({ message: "Produto não encontrado." });
-        }
-
+        const produto = await Produto.findByPk(req.params.id);
+        if (!produto) return erro(res, 404, "Produto não encontrado.");
         await produto.destroy();
-
-        return res.status(200).json({ message: "Produto removido com sucesso." });
+        return sucesso(res, null, "Produto removido com sucesso.");
     } catch (error) {
-        return res.status(500).json({
-            message: "Erro ao remover produto.",
-            error: error.message
-        });
+        return erroDoSequelize(res, error, "Erro ao remover produto.");
     }
 };
 

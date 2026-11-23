@@ -11,26 +11,30 @@ const Produto = sequelize.define(
         },
         nome: {
             type: DataTypes.STRING(150),
-            allowNull: false
+            allowNull: false,
+            validate: { notEmpty: true, len: [1, 150] }
         },
-        categoria_id: {
+        categoriaId: {
             type: DataTypes.INTEGER,
             allowNull: true,
             field: 'categoria_id'
         },
-        receita_id: {
+        receitaId: {
             type: DataTypes.INTEGER,
             allowNull: true,
             field: 'receita_id'
         },
         preco: {
             type: DataTypes.DECIMAL(10, 2),
-            allowNull: false
+            allowNull: false,
+            validate: { min: 0 },
+            get() { const v = this.getDataValue('preco'); return v == null ? v : parseFloat(v); }
         },
         estoque: {
             type: DataTypes.INTEGER,
             allowNull: false,
-            defaultValue: 0
+            defaultValue: 0,
+            validate: { min: 0, isInt: true }
         },
         ativo: {
             type: DataTypes.BOOLEAN,

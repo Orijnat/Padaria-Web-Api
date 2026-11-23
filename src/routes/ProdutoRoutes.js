@@ -6,13 +6,14 @@ import {
     update,
     destroy
 } from "../controller/ProdutoController.js";
+import { autenticarToken, autorizarFuncionario } from "../middlewares/authMiddleware.js";
 
 const router = Router();
 
 router.get("/", getAll);
 router.get("/:id", getById);
-router.post("/", create);
-router.put("/:id", update);
-router.delete("/:id", destroy);
+router.post("/", autenticarToken, autorizarFuncionario, create);
+router.put("/:id", autenticarToken, autorizarFuncionario, update);
+router.delete("/:id", autenticarToken, autorizarFuncionario, destroy);
 
 export default router;
