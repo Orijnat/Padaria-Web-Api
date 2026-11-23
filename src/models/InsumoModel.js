@@ -20,18 +20,27 @@ const Insumo = sequelize.define(
             field: 'unidade_medida'
         },
         quantidade_atual: {
-            type: DataTypes.INTEGER,
+            type: DataTypes.FLOAT,
             allowNull: false,
             defaultValue: 0,
             name: 'quantidadeAtual',
             field: 'quantidade_atual'
         },
         estoque_minimo: {
-            type: DataTypes.INTEGER,
+            type: DataTypes.FLOAT,
             allowNull: false,
             defaultValue: 0,
             name: 'estoqueMinimo',
             field: 'estoque_minimo'
+        },
+        custo: {
+            type: DataTypes.DECIMAL(10, 2),
+            allowNull: false,
+            defaultValue: 0.00
+        },
+        fornecedor: {
+            type: DataTypes.STRING(150),
+            allowNull: true
         }
     },
     {
