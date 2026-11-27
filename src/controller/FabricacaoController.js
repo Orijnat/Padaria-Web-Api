@@ -1,4 +1,5 @@
-import { Fabricacao, Produto, Funcionario } from "../models/index.js";
+import { Fabricacao, Produto, Funcionario, Receita, ReceitaIngrediente, Insumo } from "../models/index.js";
+import { sequelize } from "../config/index.js";
 import { sucesso, criado, erro, erroDeValidacao, erroDoSequelize } from "../utils/resposta.js";
 
 const includeCompleto = [
@@ -58,12 +59,30 @@ export const create = async (req, res) => {
     }
 };
 
+// Máquina de estados válida para fabricação
+const TRANSICOES_FABRICACAO = {
+    planejado: ['em_producao', 'cancelado'],
+    em_producao: ['concluido', 'cancelado'],
+    concluido: [],
+    cancelado: [],
+};
+
 export const update = async (req, res) => {
     try {
         const fab = await Fabricacao.findByPk(req.params.id);
         if (!fab) return erro(res, 404, "Ordem de fabricação não encontrada.");
 
         const { produtoId, funcionarioId, data, quantidade, status } = req.body;
+
+        // Valida máquina de estados
+        if (status !== undefined && status !== fab.status) {
+            const permitidos = TRANSICOES_FABRICACAO[fab.status] ?? [];
+            if (!permitidos.includes(status)) {
+                return erroDeValidacao(res, {
+                    status: `Transição inválida: '${fab.status}' → '${status}'. Permitidos: [${permitidos.join(', ') || 'nenhum'}].`
+                });
+            }
+        }
 
         if (produtoId !== undefined) {
             const produto = await Produto.findByPk(produtoId);
@@ -74,16 +93,73 @@ export const update = async (req, res) => {
             if (!funcionario) return erro(res, 404, `Funcionário com id ${funcionarioId} não encontrado.`);
         }
 
+        const qtdFabricacao = quantidade !== undefined ? Number(quantidade) : fab.quantidade;
+        const prodIdFinal = produtoId !== undefined ? produtoId : fab.produtoId;
+
+        // Se está concluindo: baixa insumos e incrementa estoque do produto em transação
+        if (status === 'concluido' && fab.status !== 'concluido') {
+            await sequelize.transaction(async (t) => {
+                // Busca receita do produto (se houver) para baixar insumos
+                const produto = await Produto.findByPk(prodIdFinal, { transaction: t });
+                if (produto?.receitaId) {
+                    const receita = await Receita.findByPk(produto.receitaId, {
+                        include: [{ model: ReceitaIngrediente, as: 'ingredientes', include: [{ model: Insumo, as: 'insumo' }] }],
+                        transaction: t,
+                    });
+                    if (receita?.ingredientes?.length) {
+                        for (const ing of receita.ingredientes) {
+                            const consumo = ing.quantidade * qtdFabricacao;
+                            const insumo = ing.insumo;
+                            if (!insumo) continue;
+                            if (insumo.quantidadeAtual < consumo) {
+                                throw Object.assign(
+                                    new Error(`Estoque insuficiente de '${insumo.nome}': necessário ${consumo}, disponível ${insumo.quantidadeAtual}.`),
+                                    { estoqueInsuficiente: true, insumo: insumo.nome, necessario: consumo, disponivel: insumo.quantidadeAtual }
+                                );
+                            }
+                            await insumo.update(
+                                { quantidadeAtual: parseFloat((insumo.quantidadeAtual - consumo).toFixed(4)) },
+                                { transaction: t }
+                            );
+                        }
+                    }
+                }
+
+                // Incrementa estoque do produto fabricado
+                if (produto) {
+                    await produto.update(
+                        { estoque: produto.estoque + Math.round(qtdFabricacao) },
+                        { transaction: t }
+                    );
+                }
+
+                await fab.update({
+                    ...(produtoId !== undefined && { produtoId }),
+                    ...(funcionarioId !== undefined && { funcionarioId }),
+                    ...(data !== undefined && { data }),
+                    quantidade: qtdFabricacao,
+                    status,
+                }, { transaction: t });
+            });
+
+            const fabAtualizada = await Fabricacao.findByPk(fab.id, { include: [{ model: Produto, as: 'produto' }, { model: Funcionario, as: 'funcionario' }] });
+            return sucesso(res, fabAtualizada, "Fabricação concluída: estoque de insumos debitado e produto incrementado.");
+        }
+
+        // Atualização normal (sem conclusão)
         await fab.update({
             ...(produtoId !== undefined && { produtoId }),
             ...(funcionarioId !== undefined && { funcionarioId }),
             ...(data !== undefined && { data }),
-            ...(quantidade !== undefined && { quantidade: Number(quantidade) }),
+            ...(quantidade !== undefined && { quantidade: qtdFabricacao }),
             ...(status !== undefined && { status })
         });
 
         return sucesso(res, fab, "Ordem de fabricação atualizada com sucesso.");
     } catch (error) {
+        if (error.estoqueInsuficiente) {
+            return erroDeValidacao(res, { estoque: error.message });
+        }
         return erroDoSequelize(res, error, "Erro ao atualizar ordem de fabricação.");
     }
 };

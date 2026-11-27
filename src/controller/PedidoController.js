@@ -100,6 +100,21 @@ export const create = async (req, res) => {
         }
 
         const novoPedido = await sequelize.transaction(async (t) => {
+            // Valida e debita estoque de cada produto
+            for (const item of itensNormalizados) {
+                const produto = mapaProdutos.get(item.produtoId);
+                if (produto.estoque < item.quantidade) {
+                    const err = new Error(`Estoque insuficiente para '${produto.nome}': disponível ${produto.estoque}, solicitado ${item.quantidade}.`);
+                    err.estoqueInsuficiente = true;
+                    err.produto = produto.nome;
+                    throw err;
+                }
+                await produto.update(
+                    { estoque: produto.estoque - item.quantidade },
+                    { transaction: t }
+                );
+            }
+
             const criadoPedido = await Pedido.create({
                 clienteId: clienteFinal,
                 clienteNome: nomeFinal,
@@ -125,16 +140,69 @@ export const create = async (req, res) => {
         const completo = await Pedido.findByPk(novoPedido.id, { include: includeCompleto });
         return criado(res, completo, "Pedido criado com sucesso.");
     } catch (error) {
+        if (error.estoqueInsuficiente) {
+            return erroDeValidacao(res, { estoque: error.message });
+        }
         return erroDoSequelize(res, error, "Erro ao criar pedido.");
     }
 };
 
+// Máquina de estados válida para pedidos
+const TRANSICOES_PEDIDO = {
+    pendente: ['preparando', 'cancelado'],
+    preparando: ['pronto', 'cancelado'],
+    pronto: ['entregue'],
+    entregue: [],
+    cancelado: [],
+};
+
 export const update = async (req, res) => {
     try {
-        const pedido = await Pedido.findByPk(req.params.id);
+        const pedido = await Pedido.findByPk(req.params.id, {
+            include: [{ model: PedidoItem, as: 'itens' }]
+        });
         if (!pedido) return erro(res, 404, "Pedido não encontrado.");
 
         const { status, observacao } = req.body;
+
+        // Valida máquina de estados
+        if (status !== undefined && status !== pedido.status) {
+            const permitidos = TRANSICOES_PEDIDO[pedido.status] ?? [];
+            if (!permitidos.includes(status)) {
+                return erroDeValidacao(res, {
+                    status: `Transição inválida: '${pedido.status}' → '${status}'. Permitidos: [${permitidos.join(', ') || 'nenhum'}].`
+                });
+            }
+        }
+
+        // Estorna estoque dos produtos ao cancelar pedido em transação
+        if (status === 'cancelado' && pedido.status !== 'cancelado') {
+            await sequelize.transaction(async (t) => {
+                if (Array.isArray(pedido.itens) && pedido.itens.length > 0) {
+                    const produtos = await Produto.findAll({
+                        where: { id: pedido.itens.map((i) => i.produtoId) },
+                        transaction: t
+                    });
+                    const mapaProdutos = new Map(produtos.map((p) => [p.id, p]));
+                    for (const item of pedido.itens) {
+                        const produto = mapaProdutos.get(item.produtoId);
+                        if (produto) {
+                            await produto.update(
+                                { estoque: produto.estoque + item.quantidade },
+                                { transaction: t }
+                            );
+                        }
+                    }
+                }
+
+                await pedido.update({
+                    status,
+                    ...(observacao !== undefined && { observacao })
+                }, { transaction: t });
+            });
+
+            return sucesso(res, pedido, "Pedido cancelado e estoque estornado com sucesso.");
+        }
 
         await pedido.update({
             ...(status !== undefined && { status }),
