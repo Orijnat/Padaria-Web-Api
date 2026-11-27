@@ -22,7 +22,7 @@ async function garantirAdminInicial() {
                     tipo: "funcionario",
                     senhaHash: await gerarHashSenha(senha || "admin1234")
                 });
-                console.log("👤 Usuário administrador padrão criado:", email);
+                console.log("Usuário administrador padrão criado:", email);
             }
         }
     } catch {

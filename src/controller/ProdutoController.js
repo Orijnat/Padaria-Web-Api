@@ -41,7 +41,7 @@ export const create = async (req, res) => {
             categoriaId: categoriaId !== undefined ? categoriaId : null,
             receitaId: receitaId !== undefined ? receitaId : null,
             descricao: descricao ? String(descricao).trim() : null,
-            emoji: emoji ? String(emoji).trim() : '🥖',
+            emoji: emoji ? String(emoji).trim() : '',
             ativo: paraBooleano(ativo, true)
         });
 
@@ -72,7 +72,7 @@ export const update = async (req, res) => {
             ...(categoriaId !== undefined && { categoriaId }),
             ...(receitaId !== undefined && { receitaId }),
             ...(descricao !== undefined && { descricao: descricao ? String(descricao).trim() : null }),
-            ...(emoji !== undefined && { emoji: emoji ? String(emoji).trim() : '🥖' }),
+            ...(emoji !== undefined && { emoji: emoji ? String(emoji).trim() : '' }),
             ...(ativo !== undefined && { ativo: paraBooleano(ativo, true) })
         });
 

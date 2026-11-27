@@ -22,7 +22,7 @@ const Categoria = sequelize.define(
         emoji: {
             type: DataTypes.STRING(10),
             allowNull: true,
-            defaultValue: '🥖'
+            defaultValue: ''
         },
         cor: {
             type: DataTypes.STRING(20),

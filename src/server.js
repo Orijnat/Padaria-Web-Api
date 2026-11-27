@@ -67,24 +67,24 @@ async function startServer() {
   try {
     console.log("Conectando ao banco de dados...");
     await sequelize.authenticate();
-    console.log("✅ Conexão com o PostgreSQL autenticada com sucesso.");
+    console.log("Conexão com o PostgreSQL autenticada com sucesso.");
 
     // Sincroniza os modelos com o banco de dados
     await sequelize.sync();
-    console.log("✅ Modelos sincronizados com o banco de dados.");
+    console.log("Modelos sincronizados com o banco de dados.");
 
     app.listen(PORT, () => {
-      console.log(`🚀 Servidor rodando em http://localhost:${PORT}`);
+      console.log(`Servidor rodando em http://localhost:${PORT}`);
     });
   } catch (error) {
-    console.warn("⚠️ Aviso de conexão com o banco de dados:", error.message);
+    console.warn("Aviso de conexão com o banco de dados:", error.message);
     if (isProduction) {
       console.error("Encerrando: em produção a API não sobe sem banco de dados.");
       process.exit(1);
     }
     console.log("Iniciando servidor HTTP em modo de desenvolvimento...");
     app.listen(PORT, () => {
-      console.log(`🚀 Servidor rodando em http://localhost:${PORT}`);
+      console.log(`Servidor rodando em http://localhost:${PORT}`);
     });
   }
 }

@@ -30,7 +30,7 @@ export const create = async (req, res) => {
         const nova = await Categoria.create({
             nome: nome.trim(),
             descricao,
-            emoji: emoji || '🥖',
+            emoji: emoji || '',
             cor: cor || '#c48d4a',
             ativo: paraBooleano(ativo, true)
         });

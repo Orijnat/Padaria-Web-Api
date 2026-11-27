@@ -48,7 +48,7 @@ const Produto = sequelize.define(
         emoji: {
             type: DataTypes.STRING(10),
             allowNull: true,
-            defaultValue: '🥖'
+            defaultValue: ''
         }
     },
     {

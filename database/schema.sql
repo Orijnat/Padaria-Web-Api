@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS categorias (
     id SERIAL PRIMARY KEY,
     nome VARCHAR(100) NOT NULL UNIQUE,
     descricao TEXT,
-    emoji VARCHAR(10) DEFAULT '🥖',
+    emoji VARCHAR(10) DEFAULT '',
     cor VARCHAR(20) DEFAULT '#c48d4a',
     ativo BOOLEAN NOT NULL DEFAULT TRUE
 );
@@ -85,7 +85,7 @@ CREATE TABLE IF NOT EXISTS produtos (
     estoque INTEGER NOT NULL DEFAULT 0 CHECK (estoque >= 0),
     ativo BOOLEAN NOT NULL DEFAULT TRUE,
     descricao TEXT,
-    emoji VARCHAR(10) DEFAULT '🥖'
+    emoji VARCHAR(10) DEFAULT ''
 );
 
 -- 8. Ordens de Fabricação / Produção
@@ -147,11 +147,11 @@ CREATE INDEX IF NOT EXISTS idx_pedido_itens_produto ON pedido_itens(produto_id);
 -- =============================================================================
 
 INSERT INTO categorias (id, nome, descricao, emoji, cor, ativo) VALUES
-(1, 'Pães', 'Pães artesanais e industriais', '🥖', '#c48d4a', TRUE),
-(2, 'Bolos', 'Bolos inteiros e fatias', '🍰', '#e8a020', TRUE),
-(3, 'Folhados', 'Croissants e massas folhadas', '🥐', '#d9b07a', TRUE),
-(4, 'Salgados', 'Salgadinhos e esfihas', '🧀', '#8a5420', TRUE),
-(5, 'Bebidas', 'Cafés, sucos e vitaminas', '☕', '#6b3d16', TRUE)
+(1, 'Pães', 'Pães artesanais e industriais', '', '#c48d4a', TRUE),
+(2, 'Bolos', 'Bolos inteiros e fatias', '', '#e8a020', TRUE),
+(3, 'Folhados', 'Croissants e massas folhadas', '', '#d9b07a', TRUE),
+(4, 'Salgados', 'Salgadinhos e esfihas', '', '#8a5420', TRUE),
+(5, 'Bebidas', 'Cafés, sucos e vitaminas', '', '#6b3d16', TRUE)
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO insumos (id, nome, unidade_medida, quantidade_atual, estoque_minimo, custo, fornecedor) VALUES
@@ -185,11 +185,11 @@ INSERT INTO receita_ingredientes (receita_id, insumo_id, quantidade) VALUES
 ON CONFLICT (receita_id, insumo_id) DO NOTHING;
 
 INSERT INTO produtos (id, nome, categoria_id, receita_id, preco, estoque, ativo, descricao, emoji) VALUES
-(1, 'Pão Francês', 1, 1, 0.90, 150, TRUE, 'Crocante por fora, macio por dentro.', '🥖'),
-(2, 'Bolo de Chocolate', 2, 2, 12.00, 24, TRUE, 'Fatia generosa do nosso bolo úmido.', '🍫'),
-(3, 'Croissant', 3, 3, 8.50, 36, TRUE, 'Folhado artesanal com manteiga francesa.', '🥐'),
-(4, 'Pão de Queijo (6un)', 4, NULL, 18.00, 50, TRUE, 'Pão de queijo mineiro tradicional.', '🧀'),
-(5, 'Café com Leite', 5, NULL, 7.00, 100, TRUE, 'Café coado artesanal com leite vaporizado.', '☕')
+(1, 'Pão Francês', 1, 1, 0.90, 150, TRUE, 'Crocante por fora, macio por dentro.', ''),
+(2, 'Bolo de Chocolate', 2, 2, 12.00, 24, TRUE, 'Fatia generosa do nosso bolo úmido.', ''),
+(3, 'Croissant', 3, 3, 8.50, 36, TRUE, 'Folhado artesanal com manteiga francesa.', ''),
+(4, 'Pão de Queijo (6un)', 4, NULL, 18.00, 50, TRUE, 'Pão de queijo mineiro tradicional.', ''),
+(5, 'Café com Leite', 5, NULL, 7.00, 100, TRUE, 'Café coado artesanal com leite vaporizado.', '')
 ON CONFLICT (id) DO NOTHING;
 
 SELECT setval('categorias_id_seq', (SELECT COALESCE(MAX(id), 1) FROM categorias));
