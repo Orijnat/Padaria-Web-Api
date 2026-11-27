@@ -29,6 +29,54 @@ export const getById = async (req, res) => {
     }
 };
 
+// Máquina de estados válida para fabricação
+const TRANSICOES_FABRICACAO = {
+    planejado: ['em_producao', 'cancelado'],
+    em_producao: ['concluido', 'cancelado'],
+    concluido: [],
+    cancelado: [],
+};
+
+/**
+ * Baixa insumos proporcionalmente ao rendimento da receita e incrementa o estoque do produto fabricado.
+ */
+async function concluirFabricacaoEmTransacao(prodIdFinal, qtdFabricacao, t) {
+    const produto = await Produto.findByPk(prodIdFinal, { transaction: t });
+    if (produto?.receitaId) {
+        const receita = await Receita.findByPk(produto.receitaId, {
+            include: [{ model: ReceitaIngrediente, as: 'ingredientes', include: [{ model: Insumo, as: 'insumo' }] }],
+            transaction: t,
+        });
+        if (receita?.ingredientes?.length) {
+            const fator = receita.rendimento && receita.rendimento > 0
+                ? qtdFabricacao / receita.rendimento
+                : qtdFabricacao;
+            for (const ing of receita.ingredientes) {
+                const consumo = parseFloat((ing.quantidade * fator).toFixed(4));
+                const insumo = ing.insumo;
+                if (!insumo) continue;
+                if (insumo.quantidadeAtual < consumo) {
+                    throw Object.assign(
+                        new Error(`Estoque insuficiente de '${insumo.nome}': necessário ${consum}, disponível ${insumo.quantidadeAtual}.`),
+                        { estoqueInsuficiente: true, insumo: insumo.nome, necessario: consumo, disponivel: insumo.quantidadeAtual }
+                    );
+                }
+                await insumo.update(
+                    { quantidadeAtual: parseFloat((insumo.quantidadeAtual - consumo).toFixed(4)) },
+                    { transaction: t }
+                );
+            }
+        }
+    }
+
+    if (produto) {
+        await produto.update(
+            { estoque: produto.estoque + Math.round(qtdFabricacao) },
+            { transaction: t }
+        );
+    }
+}
+
 export const create = async (req, res) => {
     try {
         const { produtoId, funcionarioId, data, quantidade, status } = req.body;
@@ -45,26 +93,38 @@ export const create = async (req, res) => {
             if (!funcionario) return erro(res, 404, `Funcionário com id ${funcionarioId} não encontrado.`);
         }
 
-        const nova = await Fabricacao.create({
-            produtoId,
-            funcionarioId: funcionarioId || null,
-            data: data || new Date(),
-            quantidade: quantidade !== undefined ? Number(quantidade) : 1,
-            status: status || 'planejado'
-        });
+        const qtdFinal = quantidade !== undefined ? Number(quantidade) : 1;
+        const statusFinal = status || 'planejado';
+
+        let nova;
+        if (statusFinal === 'concluido') {
+            nova = await sequelize.transaction(async (t) => {
+                await concluirFabricacaoEmTransacao(produtoId, qtdFinal, t);
+                return Fabricacao.create({
+                    produtoId,
+                    funcionarioId: funcionarioId || null,
+                    data: data || new Date(),
+                    quantidade: qtdFinal,
+                    status: statusFinal
+                }, { transaction: t });
+            });
+        } else {
+            nova = await Fabricacao.create({
+                produtoId,
+                funcionarioId: funcionarioId || null,
+                data: data || new Date(),
+                quantidade: qtdFinal,
+                status: statusFinal
+            });
+        }
 
         return criado(res, nova, "Ordem de fabricação registrada com sucesso.");
     } catch (error) {
+        if (error.estoqueInsuficiente) {
+            return erroDeValidacao(res, { estoque: error.message });
+        }
         return erroDoSequelize(res, error, "Erro ao registrar ordem de fabricação.");
     }
-};
-
-// Máquina de estados válida para fabricação
-const TRANSICOES_FABRICACAO = {
-    planejado: ['em_producao', 'cancelado'],
-    em_producao: ['concluido', 'cancelado'],
-    concluido: [],
-    cancelado: [],
 };
 
 export const update = async (req, res) => {
@@ -99,39 +159,7 @@ export const update = async (req, res) => {
         // Se está concluindo: baixa insumos e incrementa estoque do produto em transação
         if (status === 'concluido' && fab.status !== 'concluido') {
             await sequelize.transaction(async (t) => {
-                // Busca receita do produto (se houver) para baixar insumos
-                const produto = await Produto.findByPk(prodIdFinal, { transaction: t });
-                if (produto?.receitaId) {
-                    const receita = await Receita.findByPk(produto.receitaId, {
-                        include: [{ model: ReceitaIngrediente, as: 'ingredientes', include: [{ model: Insumo, as: 'insumo' }] }],
-                        transaction: t,
-                    });
-                    if (receita?.ingredientes?.length) {
-                        for (const ing of receita.ingredientes) {
-                            const consumo = ing.quantidade * qtdFabricacao;
-                            const insumo = ing.insumo;
-                            if (!insumo) continue;
-                            if (insumo.quantidadeAtual < consumo) {
-                                throw Object.assign(
-                                    new Error(`Estoque insuficiente de '${insumo.nome}': necessário ${consumo}, disponível ${insumo.quantidadeAtual}.`),
-                                    { estoqueInsuficiente: true, insumo: insumo.nome, necessario: consumo, disponivel: insumo.quantidadeAtual }
-                                );
-                            }
-                            await insumo.update(
-                                { quantidadeAtual: parseFloat((insumo.quantidadeAtual - consumo).toFixed(4)) },
-                                { transaction: t }
-                            );
-                        }
-                    }
-                }
-
-                // Incrementa estoque do produto fabricado
-                if (produto) {
-                    await produto.update(
-                        { estoque: produto.estoque + Math.round(qtdFabricacao) },
-                        { transaction: t }
-                    );
-                }
+                await concluirFabricacaoEmTransacao(prodIdFinal, qtdFabricacao, t);
 
                 await fab.update({
                     ...(produtoId !== undefined && { produtoId }),
